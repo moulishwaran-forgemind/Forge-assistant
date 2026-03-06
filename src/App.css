@@ -167,6 +167,31 @@ body {
   display: block;
 }
 
+/* ── Tone-reactive logo background (RESPONDING state) ───── */
+.tone-bg {
+  fill: #d10d02;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 55ms linear;
+}
+
+.state-responding .tone-bg {
+  opacity: calc(var(--voice-level, 0) * 0.52);
+}
+
+.state-responding .logo-frame {
+  transform: scale(calc(1 + var(--speech-pulse, 0) * 0.22));
+  transition: transform 40ms ease-out;
+}
+
+.state-responding .forge-mark {
+  filter:
+    drop-shadow(0 18px 32px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 calc(var(--speech-pulse, 0) * 38px + 8px) rgba(209, 13, 2, 0.88))
+    brightness(calc(1 + var(--speech-pulse, 0) * 0.32 + 0.08));
+  transition: filter 40ms ease-out;
+}
+
 /* Eye blink */
 .blink-wrapper {
   transform-box: fill-box;

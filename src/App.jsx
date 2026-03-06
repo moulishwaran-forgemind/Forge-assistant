@@ -87,6 +87,8 @@ function ForgeLogo({ eyeLRef, eyeRRef, svgRef }) {
 
         <path d="M132.5 17.2168C134.047 16.3237 135.953 16.3237 137.5 17.2168L235.753 73.9434C237.3 74.8365 238.253 76.4871 238.253 78.2734V191.727C238.253 193.513 237.3 195.163 235.753 196.057L137.5 252.783C135.953 253.676 134.047 253.676 132.5 252.783L34.2471 196.057C32.7001 195.163 31.7471 193.513 31.7471 191.727V78.2734C31.7471 76.4871 32.7001 74.8365 34.2471 73.9434L132.5 17.2168Z" fill="#111111" stroke="#111111" strokeWidth="2" strokeLinejoin="round" />
         <path d="M132.5 24C133.8 23.27 136.2 23.27 137.5 24L229.5 76.5C230.8 77.23 231.5 78.62 231.5 80.08V189.92C231.5 191.38 230.8 192.77 229.5 193.5L137.5 246C136.2 246.73 133.8 246.73 132.5 246L40.5 193.5C39.2 192.77 38.5 191.38 38.5 189.92V80.08C38.5 78.62 39.2 77.23 40.5 76.5L132.5 24Z" fill="white" />
+        {/* Tone-reactive background overlay — opacity driven by --voice-level CSS var */}
+        <path className="tone-bg" d="M132.5 24C133.8 23.27 136.2 23.27 137.5 24L229.5 76.5C230.8 77.23 231.5 78.62 231.5 80.08V189.92C231.5 191.38 230.8 192.77 229.5 193.5L137.5 246C136.2 246.73 133.8 246.73 132.5 246L40.5 193.5C39.2 192.77 38.5 191.38 38.5 189.92V80.08C38.5 78.62 39.2 77.23 40.5 76.5L132.5 24Z" />
         <path d="M132.5 50C133.8 49.27 136.2 49.27 137.5 50L207 92C208.3 92.73 209 94.12 209 95.58V174.42C209 175.88 208.3 177.27 207 178L137.5 220C136.2 220.73 133.8 220.73 132.5 220L63 178C61.7 177.27 61 175.88 61 174.42V95.58C61 94.12 61.7 92.73 63 92L132.5 50Z" fill="#111111" stroke="#111111" strokeWidth="2" strokeLinejoin="round" />
         <path d="M135.26 53.6155L101.777 73.606C100.496 74.3708 100.473 76.2184 101.735 77.0146L117.047 86.6768C117.693 87.0841 118.514 87.0886 119.163 86.6883L136.596 75.95C137.263 75.5394 138.107 75.5555 138.758 75.9912L159.388 89.8084C160.59 90.6133 160.567 92.3884 159.344 93.1609L133.581 109.437C132.953 109.834 132.157 109.85 131.513 109.478L86.897 83.729C86.2908 83.3792 85.5459 83.3717 84.9328 83.7092L65.0356 94.6617C64.3968 95.0133 64 95.6846 64 96.4138V174.378C64 175.085 64.3731 175.739 64.9814 176.099L134.336 217.145C134.966 217.518 135.75 217.517 136.378 217.142L205.274 176.1C205.879 175.739 206.25 175.087 206.25 174.382V113.114C206.25 111.568 204.57 110.606 203.236 111.39L186.715 121.105C186.104 121.464 185.729 122.12 185.729 122.829V161.881C185.729 162.57 185.374 163.21 184.791 163.576L136.396 193.895C135.759 194.294 134.952 194.303 134.307 193.916L83.6283 163.57C83.025 163.209 82.6557 162.558 82.6557 161.854V107.578C82.6557 106.024 84.3501 105.064 85.6832 105.862L134.356 135.007C134.975 135.378 135.746 135.386 136.373 135.029L203.287 96.9194C204.614 96.1634 204.638 94.2587 203.33 93.4693L137.319 53.6205C136.686 53.2386 135.895 53.2367 135.26 53.6155Z" fill="#D10D02" stroke="#111111" strokeWidth="2.5" strokeLinejoin="round" />
         <path d="M120.6 91.8L97.2 76.95L91.35 80.55L132.75 104.4L152.55 91.8L137.25 81.45L120.6 91.8Z" fill="#111111" stroke="#111111" strokeWidth="4" strokeLinejoin="round" />
@@ -144,6 +146,11 @@ export default function App() {
   // ── Logo animation mode ──────────────────────────────────────────────────
   const [logoMode, setLogoMode] = useState('float');
   const logoModeRef = useRef('float');
+
+  // ── Speech-pulse simulation refs ─────────────────────────────────────────
+  const appShellRef    = useRef(null);
+  const speechTimerRef = useRef(null);
+  const speechStateRef = useRef({ inPause: false, phase: 0, syllableDuration: 0.2, syllableIntensity: 0.7, pauseDuration: 0.1, pauseElapsed: 0 });
 
   // ── Logo animation refs ──────────────────────────────────────────────────
   const logoZoneRef = useRef(null);   // whole logo-zone (translate + tilt)
@@ -739,6 +746,54 @@ export default function App() {
     liveApiRef.current?.disconnect(); recCtxRef.current?.close(); playCtxRef.current?.close();
   }, [clearResumeTimers, stopMicCapture, stopPlayback, stopRecognition]);
 
+  // ── Speech-like breathing simulation ────────────────────────────────────
+  useEffect(() => {
+    const s = speechStateRef.current;
+    if (uiState !== UI_STATES.RESPONDING) {
+      clearInterval(speechTimerRef.current);
+      speechTimerRef.current = null;
+      appShellRef.current?.style.setProperty('--speech-pulse', '0');
+      return;
+    }
+
+    function startSyllable() {
+      s.inPause = false;
+      s.syllableDuration = 0.12 + Math.random() * 0.32;
+      s.syllableIntensity = 0.35 + Math.random() * 0.65;
+      s.phase = 0;
+    }
+
+    function startPause() {
+      s.inPause = true;
+      const r = Math.random();
+      s.pauseDuration = r < 0.12 ? 0.5  + Math.random() * 0.55   // sentence break
+                      : r < 0.40 ? 0.14 + Math.random() * 0.18   // word gap
+                      :            0.04 + Math.random() * 0.07;   // syllable gap
+      s.pauseElapsed = 0;
+    }
+
+    startSyllable();
+    const DT = 0.033;
+    speechTimerRef.current = setInterval(() => {
+      let val = 0;
+      if (s.inPause) {
+        s.pauseElapsed += DT;
+        if (s.pauseElapsed >= s.pauseDuration) startSyllable();
+      } else {
+        s.phase += DT / s.syllableDuration;
+        if (s.phase >= 1) { startPause(); }
+        else { val = Math.sin(s.phase * Math.PI) * s.syllableIntensity; }
+      }
+      appShellRef.current?.style.setProperty('--speech-pulse', val.toFixed(3));
+    }, 33);
+
+    return () => {
+      clearInterval(speechTimerRef.current);
+      speechTimerRef.current = null;
+      appShellRef.current?.style.setProperty('--speech-pulse', '0');
+    };
+  }, [uiState]);
+
   // ── Derived ──────────────────────────────────────────────────────────────
   const pulseStrength =
     uiState === UI_STATES.LISTENING  ? Math.max(0.18, Math.min(1, voiceLevel * 1.15 + 0.06)) :
@@ -748,7 +803,7 @@ export default function App() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className={appClass} style={{ '--pulse-strength': pulseStrength }}>
+    <div ref={appShellRef} className={appClass} style={{ '--pulse-strength': pulseStrength, '--voice-level': uiState === UI_STATES.RESPONDING ? voiceLevel : 0 }}>
 
       {/* ── Main voice stage ── */}
       <main className="voice-center">
